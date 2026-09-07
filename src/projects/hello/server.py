@@ -15,12 +15,12 @@ PORT = 4300
 
 def format_message(message: str) -> bytes:
     """Convert (encode) the message to bytes"""
-    # TODO: Implement this function
+    return f"Hello, {message}".encode()
 
 
 def parse_data(data: bytes) -> str:
     """Convert (decode) bytes to a string"""
-    # TODO: Implement this function
+    return data.decode().removeprefix("Hello, my name is ")
 
 
 def server_loop():

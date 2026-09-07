@@ -15,12 +15,12 @@ PORT = 4300
 
 def format_message(message: list[str]) -> bytes:
     """Convert (encode) the message to bytes"""
-    # TODO: Implement this function
+    return f"Hello, my name is {' '.join(message)}".encode()
 
 
 def parse_data(data: bytes) -> str:
     """Convert (decode) bytes to a string"""
-    # TODO: Implement this function
+    return data.decode()
 
 
 def client_loop(name: list):
