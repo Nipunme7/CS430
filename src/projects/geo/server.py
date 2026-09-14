@@ -24,7 +24,16 @@ def read_file(filename: str) -> tuple[dict[str, str], int]:
             `count` is the number of countries in the world
     """
     # TODO: Implement this function
-    ...
+    world = {}
+    count = 0
+    with open(filename) as f:
+        reader = DictReader(f, delimiter=";")
+        for row in reader:
+            count += 1
+            capital = row["Capital"]
+            for country in row["Country"].split(","):
+                world[country.strip()] = capital
+    return world, count
 
 
 def find_capital(world: dict, country: str) -> str:
@@ -36,7 +45,11 @@ def find_capital(world: dict, country: str) -> str:
     :return: capital of the specified country
     """
     # TODO: Implement this function
-    ...
+
+    if country in world:
+        return world[country]
+    else:
+        return "No such country."
 
 
 def format_message(message: str) -> bytes:
@@ -46,7 +59,8 @@ def format_message(message: str) -> bytes:
     :return: message converted to bytes
     """
     # TODO: Implement this function
-    ...
+
+    return message.encode()
 
 
 def parse_data(data: bytes) -> str:
@@ -56,7 +70,8 @@ def parse_data(data: bytes) -> str:
     :return: decoded data
     """
     # TODO: Implement this function
-    ...
+
+    return data.decode()
 
 
 def server_loop(world: dict):
@@ -64,7 +79,15 @@ def server_loop(world: dict):
     print("The server has started")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         # TODO: Implement this function
-        ...
+        sock.bind((HOST, PORT))
+        while True:
+            data, addr = sock.recvfrom(1024)
+            country = parse_data(data)
+            if country == "BYE":
+                break
+            capital = find_capital(world, country)
+            sock.sendto(format_message(capital), addr)
+    
     print("The server has finished")
 
 

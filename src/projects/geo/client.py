@@ -20,7 +20,8 @@ def format_message(message: list[str]) -> bytes:
     :return: message as bytes
     """
     # TODO: Implement this function
-    ...
+    
+    return message.encode()
 
 
 def parse_data(data: bytes) -> str:
@@ -30,7 +31,8 @@ def parse_data(data: bytes) -> str:
     :return: decoded string
     """
     # TODO: Implement this function
-    ...
+    
+    return data.decode()
 
 
 def read_user_input() -> str:
@@ -39,7 +41,7 @@ def read_user_input() -> str:
     :return: country name
     """
     # TODO: Implement this function
-    ...
+    return input("Country: ")
 
 
 def client_loop():
@@ -47,7 +49,14 @@ def client_loop():
     print("The client has started")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         # TODO: Implement this function
-        ...
+        while True:
+            country = read_user_input()
+            sock.sendto(format_message(country), (HOST, PORT))
+            if country == "BYE":
+                break
+            data, addr = sock.recvfrom(1024)
+            print(parse_data(data))
+        
     print("The client has finished")
 
 
