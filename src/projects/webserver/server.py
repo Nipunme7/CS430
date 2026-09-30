@@ -1,65 +1,88 @@
-#!/usr/bin/env python3
 """
-Python Web server implementation
+Server implementation
 
-@authors:
-@version:
+@author:
+@version: 2026.9
 """
 
 import argparse
+import datetime
 import logging
-from datetime import datetime
 from pathlib import Path
-from random import randint
-from socket import AF_INET, SOCK_STREAM, socket
-from time import sleep
+from socket import AF_INET, SO_REUSEADDR, SOCK_STREAM, SOL_SOCKET, socket
 
-SRVR_ADDR = "127.0.0.2"  # Local client is going to be 127.0.0.1
-SRVR_PORT = 43080  # Open http://127.0.0.2:43080 in a browser
-SRVR_NAME = "CS430/2024"
+SRVR_ADDR = "127.0.0.1"
+SRVR_PORT = 4380  # Open http://127.0.0.1:4380 in a browser
+SRVR_NAME = "CS430/2026"
+# A request for the key should redirect to the mapped value
+REDIRECT = {"alice.txt": "alice30.txt", "test.txt": "test26.txt"}
 
 
-def parse_request(data: bytes) -> dict:
-    """Parse the incoming request"""
+def parse_request(data: bytes) -> dict[str, str]:
+    """Parse the incoming request
+
+    :return: a dictionary of key-value mappings based on the request header
+    """
+    # TODO: Implement this function
+
     text = data.decode()
-    lines = text.split("\r\n")
+    if "\r\n\r\n" in text:
+        header_text, body = text.split("\r\n\r\n", 1)
+    else:
+        header_text = text
+        body = ""
 
+    lines = header_text.split("\r\n")
     first_line = lines[0].split(" ")
-    method = first_line[0]
-    url = first_line[1]
-    version = first_line[2]
 
     request = {}
-    request["method"] = method
-    request["url"] = url
-    request["version"] = version
+    request["Method"] = first_line[0]
+    request["Url"] = first_line[1]
+    request["Version"] = first_line[2]
 
     for line in lines[1:]:
         if line == "":
-            break
+            continue
         parts = line.split(": ", 1)
-        key = parts[0]
-        value = parts[1]
-        request[key] = value
+        request[parts[0]] = parts[1]
+
+    if body != "":
+        request["Body"] = body
 
     return request
 
 
 def format_response(
-    http_version: str, status_code: int, header: dict = {}, data: str = ""
+    http_version: str, status_code: int, header: dict | None = None, data: str = ""
 ) -> bytes:
-    """Format the response"""
+    """Format the response
+
+    :return: encoded message that includes header and data
+    """
+    # TODO: Implement this function
+
+    if data == None:
+        data = ""
+
     if status_code == 200:
         status_text = "OK"
+    elif status_code == 204:
+        status_text = "No Content"
+    elif status_code == 301:
+        status_text = "Moved Permanently"
     elif status_code == 404:
         status_text = "Not Found"
     elif status_code == 405:
         status_text = "Method Not Allowed"
-    else:
+    elif status_code == 418:
+        status_text = "I'm a teapot"
+    elif status_code == 501:
         status_text = "Not Implemented"
+    else:
+        status_text = "HTTP Version Not Supported"
 
     response = http_version + " " + str(status_code) + " " + status_text + "\r\n"
-    response = response + "Date: " + str(datetime.now()) + "\r\n"
+    response = response + "Date: " + str(datetime.datetime.now()) + "\r\n"
     response = response + "Server: " + SRVR_NAME + "\r\n"
 
     if header != None:
@@ -71,58 +94,67 @@ def format_response(
 
     response = response + "\r\n" + data
     return response.encode()
-    
 
 
 def server_loop(logfilename: Path):
     """Main server loop"""
-    print("The server has started")
+    # TODO: Implement this function using TCP socket
     with socket(AF_INET, SOCK_STREAM) as sock:
+        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         sock.bind((SRVR_ADDR, SRVR_PORT))
-        sock.listen(1)
+        sock.listen()
+        print("The server has started")
 
         while True:
             conn, addr = sock.accept()
             data = conn.recv(4096)
-
             if data == b"":
                 conn.close()
                 continue
-
             request = parse_request(data)
-            method = request["method"]
-            url = request["url"]
-            version = request["version"]
-
+            method = request["Method"]
+            url = request["Url"]
+            version = request["Version"]
             if "User-Agent" in request:
                 user_agent = request["User-Agent"]
             else:
                 user_agent = ""
-
             log = open(logfilename, "a")
-            log.write(str(datetime.now()) + " | " + url + " | " + addr[0] + " | " + user_agent + "\n")
+            log.write(str(datetime.datetime.now()) + " | " + url + " | " + addr[0] + " | " + user_agent + "\n")
             log.close()
-
-            if method == "POST":
+            filename = url[1:]
+            if version != "HTTP/1.1":
+                response = format_response(version, 505, None, None)
+            elif method == "HEAD":
                 body = "<html><head></head><body><h1>Use GET to retrieve resources from this server</h1></body></html>"
                 response = format_response(version, 405, None, body)
-            elif method != "GET":
-                response = format_response(version, 501, None, "")
-            else:
-                filepath = Path("data/projects/webserver") / url[1:]
-                if filepath.is_file() == False:
-                    body = "<html><head></head><body><h1>File " + url + " not found on our server</h1></body></html>"
-                    response = format_response(version, 404, None, body)
-                else:
-                    file = open(filepath)
-                    file_data = file.read()
-                    file.close()
-                    last_modified = str(datetime.fromtimestamp(filepath.stat().st_mtime))
+            elif method == "POST":
+                response = format_response(version, 418, None, None)
+            elif method == "PUT":
+                response = format_response(version, 501, None, None)
+            elif method == "DELETE":
+                response = format_response(version, 204, None, None)
+            elif method == "GET":
+                if filename in REDIRECT:
                     header = {}
-                    header["Content-Type"] = "text/plain; charset=utf-8"
-                    header["Last-Modified"] = last_modified
-                    response = format_response(version, 200, header, file_data)
-
+                    header["Location"] = "/" + REDIRECT[filename]
+                    response = format_response(version, 301, header, None)
+                else:
+                    filepath = Path("data/projects/webserver") / filename
+                    if filepath.is_file() == False:
+                        body = "<html><head></head><body><h1>File " + url + " not found on our server</h1></body></html>"
+                        response = format_response(version, 404, None, body)
+                    else:
+                        file = open(filepath)
+                        file_data = file.read()
+                        file.close()
+                        last_modified = str(datetime.datetime.fromtimestamp(filepath.stat().st_mtime))
+                        header = {}
+                        header["Content-Type"] = "text/plain; charset=utf-8"
+                        header["Last-Modified"] = last_modified
+                        response = format_response(version, 200, header, file_data)
+            else:
+                response = format_response(version, 501, None, None)
             conn.sendall(response)
             conn.close()
 
@@ -137,9 +169,7 @@ def main():
         help="Log file name",
         default="src/projects/webserver/webserver.log",
     )
-    arg_parser.add_argument(
-        "-d", "--debug", action="store_true", help="Enable logging.DEBUG mode"
-    )
+    arg_parser.add_argument("-d", "--debug", action="store_true", help="Enable logging.DEBUG mode")
     args = arg_parser.parse_args()
 
     logger = logging.getLogger("root")
